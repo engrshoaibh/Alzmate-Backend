@@ -17,3 +17,6 @@ CLOUDINARY_UPLOAD_PRESET = os.getenv("CLOUDINARY_UPLOAD_PRESET", "alzMate")
 FIRESTORE_JOURNAL_ENTRIES_COLLECTION = "journal_entries"
 FIRESTORE_EMOTION_ANALYSIS_COLLECTION = "emotion_analysis"  # Optional: separate collection for emotion data
 
+# Port configuration (for Render.com and other cloud platforms)
+PORT = int(os.getenv("PORT", "8000"))
+
