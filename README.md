@@ -55,13 +55,27 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Start the API Server
+### Local Development
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 The API will be available at `http://localhost:8000`
+
+### Production (Render.com)
+
+**Start Command:**
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+**Build Command:**
+```bash
+pip install -r requirements.txt
+```
+
+See `RENDER_DEPLOYMENT.md` for detailed deployment instructions.
 
 ### API Endpoints
 

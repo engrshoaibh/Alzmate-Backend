@@ -1,0 +1,65 @@
+{
+  "target_emotions": [
+    "happy",
+    "sad",
+    "angry",
+    "anxious",
+    "fearful",
+    "confused",
+    "frustrated",
+    "calm",
+    "lonely",
+    "depressed"
+  ],
+  "emotion_mapping": {
+    "happy": [
+      "joy",
+      "amusement",
+      "excitement",
+      "optimism",
+      "pride",
+      "relief"
+    ],
+    "sad": [
+      "sadness",
+      "grief",
+      "disappointment"
+    ],
+    "angry": [
+      "anger",
+      "annoyance",
+      "disapproval"
+    ],
+    "anxious": [
+      "nervousness",
+      "fear"
+    ],
+    "fearful": [
+      "fear"
+    ],
+    "confused": [
+      "confusion"
+    ],
+    "frustrated": [
+      "anger",
+      "annoyance",
+      "disappointment",
+      "disapproval"
+    ],
+    "calm": [
+      "relief",
+      "neutral"
+    ],
+    "lonely": [
+      "sadness",
+      "grief"
+    ],
+    "depressed": [
+      "sadness",
+      "grief",
+      "remorse"
+    ]
+  },
+  "model_name": "bert-base-uncased",
+  "max_length": 128
+}

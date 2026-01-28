@@ -1,0 +1,95 @@
+def predict_emotions(text, model, tokenizer, target_emotions, device, top_k=2):
+    """
+    Predict emotions and intensity for a given text
+
+    Args:
+        text: Input text string
+        model: Fine-tuned BERT modela
+        tokenizer: BERT tokenizer
+        target_emotions: List of target emotion names
+        device: torch device
+        top_k: Number of top emotions to return
+
+    Returns:
+        dict with primary_emotion, secondary_emotion, intensities, and all_emotions
+    """
+    model.eval()
+
+    # Preprocess text
+    text = preprocess_text(text)
+
+    # Tokenize
+    inputs = tokenizer(
+        text,
+        truncation=True,
+        padding='max_length',
+        max_length=MAX_LENGTH,
+        return_tensors='pt'
+    ).to(device)
+
+    # Predict
+    with torch.no_grad():
+        outputs = model(**inputs)
+        logits = outputs.logits[0].cpu().numpy()
+
+    # Apply sigmoid to get probabilities
+    probs = torch.sigmoid(torch.tensor(logits)).numpy()
+
+    # Convert to intensity scores (0-100)
+    intensities = (probs * 100).astype(int)
+
+    # Get top emotions
+    top_indices = np.argsort(probs)[::-1][:top_k]
+
+    # Build result
+    all_emotions = []
+    for i, emotion in enumerate(target_emotions):
+        all_emotions.append({
+            'emotion': emotion,
+            'intensity': int(intensities[i]),
+            'probability': float(probs[i])
+        })
+
+    # Sort by intensity
+    all_emotions.sort(key=lambda x: x['intensity'], reverse=True)
+
+    result = {
+        'primary_emotion': {
+            'emotion': target_emotions[top_indices[0]],
+            'intensity': int(intensities[top_indices[0]])
+        },
+        'all_emotions': all_emotions
+    }
+
+    if top_k > 1 and len(top_indices) > 1:
+        result['secondary_emotion'] = {
+            'emotion': target_emotions[top_indices[1]],
+            'intensity': int(intensities[top_indices[1]])
+        }
+
+    # Determine mood risk flag
+    negative_emotions = ['sad', 'angry', 'anxious', 'fearful', 'depressed', 'lonely']
+    high_intensity_negative = any(
+        e['emotion'] in negative_emotions and e['intensity'] > 60
+        for e in all_emotions[:2]
+    )
+    result['mood_risk_flag'] = high_intensity_negative
+
+    return result
+
+# Test inference
+test_texts = [
+    "I don't know why I keep forgetting things. It makes me angry and I feel hopeless.",
+    "Today was nice. I talked to my son and felt calm.",
+    "I'm feeling really anxious about tomorrow's appointment."
+]
+
+print("Testing inference on sample texts:\n")
+for text in test_texts:
+    result = predict_emotions(text, model, tokenizer, target_emotions, device, top_k=2)
+    print(f"Text: {text}")
+    print(f"Primary: {result['primary_emotion']['emotion']} (intensity: {result['primary_emotion']['intensity']})")
+    if 'secondary_emotion' in result:
+        print(f"Secondary: {result['secondary_emotion']['emotion']} (intensity: {result['secondary_emotion']['intensity']})")
+    print(f"Mood Risk: {result['mood_risk_flag']}")
+    print("-" * 80)
