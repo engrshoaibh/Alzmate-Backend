@@ -1,16 +1,12 @@
 # emotion_model.py
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
-import torch
-import torch.nn.functional as F
 from text_preprocessor import preprocess_text
 from typing import Dict, Optional, List
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Note: We do NOT import BertForSequenceClassification at module level
-# to avoid torchvision compatibility issues. It will be imported lazily
-# inside _load_model() when actually needed.
+# Note: transformers and torch are imported lazily inside functions
+# to avoid blocking uvicorn startup on Render.com
 
 MODEL_NAME = "boltuix/bert-emotion"
 
@@ -25,6 +21,10 @@ def _load_model():
     
     if _model is not None:
         return  # Already loaded
+    
+    # Lazy import transformers and torch (heavy imports)
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
+    import torch
     
     try:
         logger.info(f"Loading emotion model: {MODEL_NAME}")
@@ -284,6 +284,10 @@ def analyze_emotion(text: str, preprocess: bool = True) -> Dict:
         Dictionary with primary_emotion, secondary_emotion, intensity, 
         interpretation tags, and mood_risk flag
     """
+    # Lazy import torch (heavy import)
+    import torch
+    import torch.nn.functional as F
+    
     if not text or not text.strip():
         return {
             "primary_emotion": {

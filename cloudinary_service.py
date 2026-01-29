@@ -1,7 +1,4 @@
 # cloudinary_service.py
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
 from typing import Optional
 from pathlib import Path
 import requests
@@ -12,12 +9,20 @@ from config import (
     CLOUDINARY_UPLOAD_PRESET
 )
 
-# Configure Cloudinary
-cloudinary.config(
-    cloud_name=CLOUDINARY_CLOUD_NAME,
-    api_key=CLOUDINARY_API_KEY,
-    api_secret=CLOUDINARY_API_SECRET
-)
+# Lazy import and configuration
+_cloudinary_configured = False
+
+def _ensure_cloudinary_configured():
+    """Lazy initialization of Cloudinary configuration."""
+    global _cloudinary_configured
+    if not _cloudinary_configured:
+        import cloudinary
+        cloudinary.config(
+            cloud_name=CLOUDINARY_CLOUD_NAME,
+            api_key=CLOUDINARY_API_KEY,
+            api_secret=CLOUDINARY_API_SECRET
+        )
+        _cloudinary_configured = True
 
 def upload_audio_file(
     file_path: str,
@@ -37,6 +42,8 @@ def upload_audio_file(
     Returns:
         Secure URL of the uploaded file
     """
+    _ensure_cloudinary_configured()
+    import cloudinary.uploader
     try:
         # Determine folder path
         if folder:
@@ -80,6 +87,8 @@ def upload_audio_from_bytes(
     Returns:
         Secure URL of the uploaded file
     """
+    _ensure_cloudinary_configured()
+    import cloudinary.uploader
     try:
         # Determine folder path
         if folder:
@@ -122,6 +131,8 @@ def upload_file_from_url(
     Returns:
         Secure URL of the uploaded file
     """
+    _ensure_cloudinary_configured()
+    import cloudinary.uploader
     try:
         # Download file from URL
         response = requests.get(file_url)
@@ -159,6 +170,8 @@ def delete_file(public_id: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
+    _ensure_cloudinary_configured()
+    import cloudinary.uploader
     try:
         result = cloudinary.uploader.destroy(public_id, resource_type="video")
         return result.get("result") == "ok"

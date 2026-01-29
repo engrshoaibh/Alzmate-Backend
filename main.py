@@ -465,7 +465,17 @@ def get_combined_weekly_report(patient_id: str):
 
 @app.get("/")
 def root():
-    """API root endpoint."""
+    """API root endpoint - minimal health check."""
+    return {"status": "ok"}
+
+@app.get("/health")
+def health():
+    """Health check endpoint for Render.com."""
+    return {"status": "ok"}
+
+@app.get("/api-info")
+def api_info():
+    """API information endpoint."""
     return {
         "message": "AlzMate Emotion Analysis & Progress Tracking API",
         "version": "2.0.0",
