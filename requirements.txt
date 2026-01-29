@@ -1,7 +1,7 @@
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
+gunicorn>=21.2.0
 pydantic>=2.0.0
-# Transformers 4.x for compatibility with boltuix/bert-emotion model
 transformers>=4.35.0,<5.0.0
 torch>=2.0.0
 torchvision>=0.15.0
@@ -12,7 +12,3 @@ firebase-admin>=6.2.0
 cloudinary>=1.36.0
 requests>=2.31.0
 python-dotenv>=1.0.0
-
-# Note: optimum-onnx is optional and can cause conflicts
-# Only install if needed: pip install optimum-onnx
-
