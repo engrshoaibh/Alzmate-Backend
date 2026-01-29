@@ -1,3 +1,44 @@
-env/
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Firebase Credentials - NEVER commit these!
+# Service account JSON files
+*-firebase-adminsdk-*.json
+*service-account*.json
+*firebase-credentials*.json
+firebase-*.json
 alzmate-*-firebase-adminsdk-*.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp

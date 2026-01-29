@@ -1,17 +1,189 @@
 # emotion_model.py
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
 import torch
 import torch.nn.functional as F
 from text_preprocessor import preprocess_text
 from typing import Dict, Optional, List
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Note: We do NOT import BertForSequenceClassification at module level
+# to avoid torchvision compatibility issues. It will be imported lazily
+# inside _load_model() when actually needed.
 
 MODEL_NAME = "boltuix/bert-emotion"
 
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
-model.eval()
+# Initialize model and tokenizer as None - will be loaded lazily
+_tokenizer = None
+_model = None
+_labels = None
 
-labels = model.config.id2label
+def _load_model():
+    """Load the emotion model and tokenizer."""
+    global _tokenizer, _model, _labels
+    
+    if _model is not None:
+        return  # Already loaded
+    
+    try:
+        logger.info(f"Loading emotion model: {MODEL_NAME}")
+        
+        # Load tokenizer first
+        try:
+            _tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        except Exception as e:
+            raise ValueError(
+                f"Failed to load tokenizer for model '{MODEL_NAME}': {e}. "
+                "Please check your internet connection."
+            ) from e
+        
+        # Load config first to understand the model architecture
+        try:
+            config = AutoConfig.from_pretrained(MODEL_NAME)
+            logger.info(f"Model type: {config.model_type}, Architectures: {getattr(config, 'architectures', 'N/A')}")
+        except Exception as e:
+            logger.warning(f"Could not load config: {e}, proceeding with default loading")
+            config = None
+        
+        # Try multiple loading strategies
+        loading_strategies = [
+            # Strategy 1: Use explicit BERT class (most reliable for BERT models)
+            {
+                "description": "explicit_bert_class",
+                "method": "explicit_bert"
+            },
+            # Strategy 2: Use AutoModel with ignore_mismatched_sizes
+            {
+                "description": "auto_ignore_mismatch",
+                "method": "auto",
+                "kwargs": {"ignore_mismatched_sizes": True}
+            },
+            # Strategy 3: Standard AutoModel loading
+            {
+                "description": "auto_model",
+                "method": "auto",
+                "kwargs": {}
+            },
+            # Strategy 4: With trust_remote_code
+            {
+                "description": "trust_remote_code",
+                "method": "auto",
+                "kwargs": {"trust_remote_code": True}
+            },
+        ]
+        
+        last_error = None
+        for strategy in loading_strategies:
+            try:
+                logger.info(f"Trying to load model with strategy: {strategy['description']}")
+                
+                if strategy["method"] == "explicit_bert":
+                    # Try loading with explicit BERT class
+                    try:
+                        from transformers.models.bert.modeling_bert import BertForSequenceClassification
+                        if config:
+                            _model = BertForSequenceClassification.from_pretrained(
+                                MODEL_NAME,
+                                config=config
+                            )
+                        else:
+                            _model = BertForSequenceClassification.from_pretrained(MODEL_NAME)
+                    except ImportError as import_err:
+                        # If we can't import the class, skip this strategy
+                        logger.warning(f"Cannot import BertForSequenceClassification: {import_err}")
+                        raise import_err
+                else:
+                    # Use AutoModel
+                    _model = AutoModelForSequenceClassification.from_pretrained(
+                        MODEL_NAME,
+                        **strategy.get("kwargs", {})
+                    )
+                
+                logger.info(f"Successfully loaded model using strategy: {strategy['description']}")
+                break  # Success, exit loop
+                
+            except (ModuleNotFoundError, AttributeError, ImportError) as e:
+                last_error = e
+                error_str = str(e)
+                if "BertForSequenceClassification" in error_str or "Could not import module" in error_str:
+                    logger.warning(
+                        f"Model loading failed with {type(e).__name__}: {e}. "
+                        "Trying alternative loading methods..."
+                    )
+                continue
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Loading strategy '{strategy['description']}' failed: {e}")
+                continue
+        
+        if _model is None:
+            # All strategies failed - try one more time with a workaround
+            try:
+                logger.info("Attempting final workaround: loading via AutoModel with ignore_mismatched_sizes")
+                from transformers import AutoModel
+                # Load as base model and add classification head manually if needed
+                base_model = AutoModel.from_pretrained(MODEL_NAME)
+                config = base_model.config
+                
+                # Try to get the actual model from the state dict
+                _model = AutoModelForSequenceClassification.from_pretrained(
+                    MODEL_NAME,
+                    ignore_mismatched_sizes=True
+                )
+            except Exception as final_error:
+                # All methods failed
+                import transformers
+                transformers_version = transformers.__version__
+                
+                error_msg = (
+                    f"Failed to load emotion model '{MODEL_NAME}' after trying all strategies. "
+                    f"Last error: {last_error or final_error}. "
+                    f"\n\nDetected transformers version: {transformers_version}"
+                    "\n\nThis error is commonly caused by transformers 5.0.0 compatibility issues."
+                    "\n\nRECOMMENDED FIX:"
+                    "\n  Run this command to downgrade transformers:"
+                    "\n  pip install 'transformers>=4.35.0,<5.0.0' --upgrade"
+                    "\n\nOr run the helper script:"
+                    "\n  python fix_transformers_compatibility.py"
+                    "\n\nAlternative solutions:"
+                    "\n  1. Upgrade transformers: pip install --upgrade transformers"
+                    "\n  2. Clear HuggingFace cache: rm -rf ~/.cache/huggingface/"
+                    "\n  3. Check model: https://huggingface.co/boltuix/bert-emotion"
+                )
+                raise ValueError(error_msg) from (last_error or final_error)
+        
+        _model.eval()
+        _labels = _model.config.id2label
+        logger.info("Emotion model loaded successfully")
+        
+    except ValueError:
+        # Re-raise ValueError as-is (it already has helpful messages)
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error loading emotion model: {e}")
+        raise ValueError(
+            f"Failed to initialize emotion model: {e}. "
+            "Please check your internet connection and ensure the model can be downloaded from HuggingFace."
+        ) from e
+
+def get_tokenizer():
+    """Get the tokenizer, loading it if necessary."""
+    if _tokenizer is None:
+        _load_model()
+    return _tokenizer
+
+def get_model():
+    """Get the model, loading it if necessary."""
+    if _model is None:
+        _load_model()
+    return _model
+
+def get_labels():
+    """Get the labels, loading the model if necessary."""
+    if _labels is None:
+        _load_model()
+    return _labels
 
 # Emotion mapping to standardize labels
 EMOTION_MAPPING = {
@@ -131,6 +303,11 @@ def analyze_emotion(text: str, preprocess: bool = True) -> Dict:
             processed_text = text  # Fallback to original if preprocessing removes everything
     else:
         processed_text = text
+    
+    # Get tokenizer and model (lazy loading)
+    tokenizer = get_tokenizer()
+    model = get_model()
+    labels = get_labels()
     
     # Tokenize and predict
     inputs = tokenizer(

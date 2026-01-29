@@ -84,8 +84,30 @@ async def analyze_emotion_endpoint(req: EmotionRequest):
             analysis=result,
             audio_url=None
         )
+    except ValueError as e:
+        # Firebase credential errors
+        error_msg = str(e)
+        if "JWT" in error_msg or "invalid_grant" in error_msg or "signature" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=f"Firebase authentication error: {error_msg}. Please check your Firebase credentials configuration."
+            )
+        raise HTTPException(status_code=400, detail=f"Configuration error: {error_msg}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing emotion: {str(e)}")
+        error_msg = str(e)
+        # Check for timeout errors
+        if "timeout" in error_msg.lower() or "Timeout" in error_msg:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Request timeout: {error_msg}. This may be due to Firebase authentication issues."
+            )
+        # Check for Firebase authentication errors
+        if "JWT" in error_msg or "invalid_grant" in error_msg or "503" in error_msg or "metadata" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=f"Firebase service error: {error_msg}. Please verify your Firebase credentials are correctly configured."
+            )
+        raise HTTPException(status_code=500, detail=f"Error analyzing emotion: {error_msg}")
 
 @app.post("/analyze-emotion-with-audio")
 async def analyze_emotion_with_audio(
@@ -154,8 +176,30 @@ async def analyze_emotion_with_audio(
             "analysis": result,
             "audio_url": audio_url
         }
+    except ValueError as e:
+        # Firebase credential errors
+        error_msg = str(e)
+        if "JWT" in error_msg or "invalid_grant" in error_msg or "signature" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=f"Firebase authentication error: {error_msg}. Please check your Firebase credentials configuration."
+            )
+        raise HTTPException(status_code=400, detail=f"Configuration error: {error_msg}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error analyzing emotion: {str(e)}")
+        error_msg = str(e)
+        # Check for timeout errors
+        if "timeout" in error_msg.lower() or "Timeout" in error_msg:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Request timeout: {error_msg}. This may be due to Firebase authentication issues."
+            )
+        # Check for Firebase authentication errors
+        if "JWT" in error_msg or "invalid_grant" in error_msg or "503" in error_msg or "metadata" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=f"Firebase service error: {error_msg}. Please verify your Firebase credentials are correctly configured."
+            )
+        raise HTTPException(status_code=500, detail=f"Error analyzing emotion: {error_msg}")
 
 @app.get("/emotion-entries/{patient_id}")
 def get_entries(
